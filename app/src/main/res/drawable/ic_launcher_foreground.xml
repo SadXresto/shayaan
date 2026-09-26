@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centered within 66dp safe zone (21,21 to 87,87) -->
+    <!-- Supporting hands / lotus-leaf caring wings -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 C49,30 45,34 45,39 C45,46 54,54 54,54 C54,54 63,46 63,39 C63,34 59,30 54,30 Z" />
+    <path
+        android:fillColor="#C8E6D9"
+        android:pathData="M54,58 C46,58 35,63 35,70 C35,74 38,76 42,76 C46,76 50,73 54,71 C58,73 62,76 66,76 C70,76 73,74 73,70 C73,63 62,58 54,58 Z" />
+    <!-- Protective caring arc -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M31,52 C31,39 41,28 54,28 C67,28 77,39 77,52" />
+</vector>
+

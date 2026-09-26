@@ -1,0 +1,6 @@
+{
+  "name": "Sahaaya",
+  "description": "SAHAAYA — Building Safer Generations. A school well-being app where students do daily check-ins and counsellors identify who needs support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

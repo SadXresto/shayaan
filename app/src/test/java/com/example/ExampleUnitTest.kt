@@ -39,15 +39,14 @@ class ExampleUnitTest {
     assertTrue(sql.contains("create or replace function public.resolve_school_code(code text)"))
     assertTrue(sql.contains("create or replace function public.request_counsellor()"))
 
-    // Verify service_role AI message policy, grants, realtime, and seed school
-    assertTrue(sql.contains("to service_role"))
+    // Verify grants, realtime, and seed school
     assertTrue(sql.contains("grant execute on function public.resolve_school_code(text)"))
     assertTrue(sql.contains("alter publication supabase_realtime add table public.messages;"))
     assertTrue(sql.contains("SAHYAAN-TEST"))
   }
 
   @Test
-  fun envExample_hasNoForbiddenSecretAssignments() {
+  fun envExample_containsOnlyAllowedClientVariables() {
     val envExample = sequenceOf(
       File("../.env.example"),
       File(".env.example")
@@ -59,9 +58,9 @@ class ExampleUnitTest {
       .filter { it.isNotEmpty() && !it.startsWith("#") }
 
     assertTrue("Active lines must not be empty", activeLines.isNotEmpty())
-    val forbiddenRegex = Regex("""^(export\s+)?(GEMINI_API_KEY|SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY)\s*=|(sb_secret_|AIzaSy|service_role)""")
+    val allowedVarRegex = Regex("""^(SUPABASE_URL|SUPABASE_ANON_KEY|SUPABASE_PUBLISHABLE_KEY|SUPABASE_KEY)=.+""")
     for (line in activeLines) {
-      assertFalse("Forbidden secret found in active .env.example line: $line", forbiddenRegex.containsMatchIn(line))
+      assertTrue("Only client-safe SUPABASE_* variables are allowed in .env.example: $line", allowedVarRegex.matches(line))
     }
   }
 

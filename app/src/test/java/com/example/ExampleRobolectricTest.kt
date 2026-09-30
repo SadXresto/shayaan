@@ -18,4 +18,16 @@ class ExampleRobolectricTest {
     val appName = context.getString(R.string.app_name)
     assertEquals("Sahaaya", appName)
   }
+
+  @Test
+  fun `repository initializes without NullPointerException`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val repo = SahaayaRepository(context)
+    assertEquals("", repo.loggedInRole)
+    assertEquals("Sage", repo.chatMessages.first().senderName)
+    val student = repo.loginOrRegisterStudent("Aarav", "9876543210", repo.schoolInfo.name, "Class 10 - Section A")
+    assertEquals("student", repo.loggedInRole)
+    assertEquals("Aarav", student.name)
+    assertEquals(1, repo.students.size)
+  }
 }

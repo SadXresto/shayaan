@@ -1,0 +1,45 @@
+name: Sahyaan APK Security Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  secret-leak-check:
+    name: Verify No Server Secrets in Android App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 1. Ensure .env and local.properties are not tracked in git
+        run: |
+          TRACKED=$(git ls-files | grep -E '(^|/)\.env($|\.)|local\.properties' | grep -v '\.env\.example$' || true)
+          if [ -n "$TRACKED" ]; then
+            echo "❌ ERROR: Secret config files are tracked in git:"
+            echo "$TRACKED"
+            exit 1
+          fi
+          echo "✅ No .env or local.properties tracked in git."
+
+      - name: 2. Scan app/ source for server-only keys and forbidden identifiers
+        run: |
+          LEAKS=$(grep -rnE "sb_secret_|service_role|AIzaSy|GEMINI_API_KEY" app/src/ || true)
+          if [ -n "$LEAKS" ]; then
+            echo "❌ ERROR: Server secret reference or key found inside app/src/:"
+            echo "$LEAKS"
+            exit 1
+          fi
+          echo "✅ 0 secret matches in app/src/."
+
+      - name: 3. Verify .env.example contains only safe client variables
+        run: |
+          FORBIDDEN=$(grep -E "sb_secret_|service_role|AIzaSy|GEMINI_API_KEY" .env.example || true)
+          if [ -n "$FORBIDDEN" ]; then
+            echo "❌ ERROR: Forbidden secret key or variable found in .env.example:"
+            echo "$FORBIDDEN"
+            exit 1
+          fi
+          echo "✅ .env.example contains only client-safe Supabase variables."

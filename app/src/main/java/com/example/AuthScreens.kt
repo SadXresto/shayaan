@@ -216,7 +216,7 @@ fun WelcomeScreen(
                             .testTag("welcome_student_btn"),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Student Portal", style = MaterialTheme.typography.labelMedium)
+                        Text("Student Login", style = MaterialTheme.typography.labelMedium)
                     }
 
                     OutlinedButton(
@@ -227,7 +227,7 @@ fun WelcomeScreen(
                             .testTag("welcome_counsellor_btn"),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Counsellor Portal", style = MaterialTheme.typography.labelMedium)
+                        Text("Counsellor Login", style = MaterialTheme.typography.labelMedium)
                     }
                 }
 

@@ -215,7 +215,8 @@ fun CounsellorMainContainer(
                         onGoToClasses = { selectedTab = 1 },
                         onGoToSupport = { selectedTab = 2 },
                         onGoToReports = { selectedTab = 3 },
-                        onNavigateChatHub = onNavigateChatHub
+                        onNavigateChatHub = onNavigateChatHub,
+                        onGoToSetup = { selectedTab = 4 }
                     )
                     1 -> ClassWiseScreen(
                         repository = repository,
@@ -252,7 +253,8 @@ fun CounsellorDashboardScreen(
     onGoToClasses: () -> Unit,
     onGoToSupport: () -> Unit,
     onGoToReports: () -> Unit,
-    onNavigateChatHub: () -> Unit = {}
+    onNavigateChatHub: () -> Unit = {},
+    onGoToSetup: () -> Unit = {}
 ) {
     val totalStudents = repository.students.size
     val checkedInCount = repository.students.count { it.checkedInToday }
@@ -362,6 +364,64 @@ fun CounsellorDashboardScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // School Password Quick Access Card
+            var showPwOnDash by remember { mutableStateOf(false) }
+            val currentPw = repository.currentSchoolPassword
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("dashboard_school_password_card"),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = Icons.Filled.Key,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Student Login Password",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = if (showPwOnDash) currentPw else "••••••••",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { showPwOnDash = !showPwOnDash }) {
+                            Icon(
+                                imageVector = if (showPwOnDash) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (showPwOnDash) "Hide password" else "Show password",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        TextButton(onClick = onGoToSetup) {
+                            Text("Manage", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Direct Student Messages Card
             val directMsgCount = repository.directMessages.size
@@ -1816,7 +1876,7 @@ fun SchoolSetupScreen(
                 .testTag("counsellor_logout_btn"),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Log Out / Switch Role")
+            Text("Log Out")
         }
 
         Spacer(modifier = Modifier.height(30.dp))

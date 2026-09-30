@@ -224,6 +224,37 @@ class SahaayaRepository(private val context: Context? = null) {
     var checkInFrequency by mutableStateOf("Daily")
     var themeMode by mutableStateOf(ThemeMode.LIGHT)
 
+    // Persistent Direct Messages between Students and School Counsellor
+    val directMessages = mutableStateListOf<DirectChatMessage>()
+
+    // Persistent Chat Messages with Sage AI Companion
+    var isSageTyping by mutableStateOf(false)
+
+    val chatMessages = mutableStateListOf(
+        ChatMessage(
+            id = "msg_1",
+            senderName = "Sage",
+            message = "Hi there, I'm Sage—your warm, non-judgmental AI companion here at Sahaaya. This is a safe space to express your feelings, explore your thoughts, and receive gentle guidance. While I'm an AI and not a licensed therapist, your conversations with human counsellors via \"Connect with a Counsellor\" are always private and secure. How are you feeling today?",
+            isFromUser = false,
+            timestamp = "Today, Just now"
+        )
+    )
+
+    // Managed Students (Starts clean; dynamic accounts created/uploaded on student login)
+    val students = mutableStateListOf<Student>()
+
+    // Real Check-in history submitted by students
+    val checkIns = mutableStateListOf<CheckIn>()
+
+    // Real Friend Reports submitted by students
+    val friendReports = mutableStateListOf<FriendReport>()
+
+    // Real Support Requests submitted by students
+    val supportRequests = mutableStateListOf<SupportRequest>()
+
+    // Real Counsellor Safeguarding Cases
+    val counsellorCases = mutableStateListOf<CounsellorCase>()
+
     init {
         loadSavedSession()
     }
@@ -260,79 +291,80 @@ class SahaayaRepository(private val context: Context? = null) {
             }
         }
 
-        val role = prefs?.getString("logged_in_role", "student") ?: "student"
-        val sName = (prefs?.getString("student_name", "") ?: "").ifBlank { "Student" }
-        val sPhone = prefs?.getString("student_phone", "") ?: ""
-        val sSchool = (prefs?.getString("student_school", "") ?: "").ifBlank { schoolInfo.name }
-        val sClass = (prefs?.getString("student_class", "") ?: "").ifBlank { "Class 10 - Section A" }
-        val sStreak = prefs?.getInt("student_streak", 0) ?: 0
-        val sSeeds = prefs?.getInt("student_seeds", 0) ?: 0
-        val sMood = prefs?.getString("student_mood", "") ?: ""
-        val sCheckedToday = prefs?.getBoolean("student_checked_today", false) ?: false
-        val sLastCheckIn = prefs?.getString("student_last_checkin", "Never") ?: "Never"
+        val role = prefs?.getString("logged_in_role", "") ?: ""
+        if (role == "student") {
+            val sName = prefs?.getString("student_name", "") ?: ""
+            val sPhone = prefs?.getString("student_phone", "") ?: ""
+            val sSchool = prefs?.getString("student_school", schoolInfo.name) ?: schoolInfo.name
+            val sClass = prefs?.getString("student_class", "Class 10 - Section A") ?: "Class 10 - Section A"
+            val sStreak = prefs?.getInt("student_streak", 0) ?: 0
+            val sSeeds = prefs?.getInt("student_seeds", 0) ?: 0
+            val sMood = prefs?.getString("student_mood", "") ?: ""
+            val sCheckedToday = prefs?.getBoolean("student_checked_today", false) ?: false
+            val sLastCheckIn = prefs?.getString("student_last_checkin", "Never") ?: "Never"
 
-        val loadedStudent = Student(
-            id = "std_${sPhone.ifBlank { "default" }}",
-            name = sName,
-            phone = sPhone,
-            schoolName = sSchool,
-            classSection = sClass,
-            streak = sStreak,
-            seeds = sSeeds,
-            lastCheckIn = sLastCheckIn,
-            checkedInToday = sCheckedToday,
-            mood = sMood
-        )
-        currentStudent = loadedStudent
-        studentSeeds = sSeeds
-        if (students.none { it.id == loadedStudent.id }) {
-            students.add(loadedStudent)
-        }
-
-        // Restore latest check-in reflection card if present
-        val cMood = prefs?.getString("last_checkin_mood", "") ?: ""
-        if (cMood.isNotBlank()) {
-            val cEnergy = prefs?.getString("last_checkin_energy", "") ?: ""
-            val cSleep = prefs?.getString("last_checkin_sleep", "") ?: ""
-            val cAction = prefs?.getString("last_checkin_action", "") ?: ""
-            val cNotes = prefs?.getString("last_checkin_notes", "") ?: ""
-            val cTalk = prefs?.getString("last_checkin_talk", "") ?: ""
-            val cTimestamp = prefs?.getString("last_checkin_time", "Today, Just now") ?: "Today, Just now"
-            val factorsStr = prefs?.getString("last_checkin_factors", "") ?: ""
-            val factorsList = if (factorsStr.isNotBlank()) factorsStr.split(", ") else emptyList()
-
-            checkIns.add(
-                0,
-                CheckIn(
-                    id = "c_saved",
-                    studentId = loadedStudent.id,
-                    studentName = loadedStudent.name,
-                    studentClass = loadedStudent.classSection,
-                    mood = cMood,
-                    factors = factorsList,
-                    wantsToTalk = cTalk,
-                    customNotes = cNotes,
-                    energyLevel = cEnergy,
-                    sleepQuality = cSleep,
-                    supportAction = cAction,
-                    timestamp = cTimestamp
+            if (sName.isNotBlank()) {
+                val loadedStudent = Student(
+                    id = "std_${sPhone.ifBlank { "saved" }}",
+                    name = sName,
+                    phone = sPhone,
+                    schoolName = sSchool,
+                    classSection = sClass,
+                    streak = sStreak,
+                    seeds = sSeeds,
+                    lastCheckIn = sLastCheckIn,
+                    checkedInToday = sCheckedToday,
+                    mood = sMood
                 )
-            )
-        }
+                currentStudent = loadedStudent
+                studentSeeds = sSeeds
+                loggedInRole = "student"
+                if (students.none { it.id == loadedStudent.id }) {
+                    students.add(loadedStudent)
+                }
 
-        if (role == "counsellor") {
+                // Restore latest check-in reflection card if present
+                val cMood = prefs?.getString("last_checkin_mood", "") ?: ""
+                if (cMood.isNotBlank()) {
+                    val cEnergy = prefs?.getString("last_checkin_energy", "") ?: ""
+                    val cSleep = prefs?.getString("last_checkin_sleep", "") ?: ""
+                    val cAction = prefs?.getString("last_checkin_action", "") ?: ""
+                    val cNotes = prefs?.getString("last_checkin_notes", "") ?: ""
+                    val cTalk = prefs?.getString("last_checkin_talk", "") ?: ""
+                    val cTimestamp = prefs?.getString("last_checkin_time", "Today, Just now") ?: "Today, Just now"
+                    val factorsStr = prefs?.getString("last_checkin_factors", "") ?: ""
+                    val factorsList = if (factorsStr.isNotBlank()) factorsStr.split(", ") else emptyList()
+
+                    checkIns.add(
+                        0,
+                        CheckIn(
+                            id = "c_saved",
+                            studentId = loadedStudent.id,
+                            studentName = loadedStudent.name,
+                            studentClass = loadedStudent.classSection,
+                            mood = cMood,
+                            factors = factorsList,
+                            wantsToTalk = cTalk,
+                            customNotes = cNotes,
+                            energyLevel = cEnergy,
+                            sleepQuality = cSleep,
+                            supportAction = cAction,
+                            timestamp = cTimestamp
+                        )
+                    )
+                }
+            }
+        } else if (role == "counsellor") {
             val cEmail = prefs?.getString("counsellor_email", "") ?: ""
             val cSchool = prefs?.getString("counsellor_school", "") ?: ""
             if (cEmail.isNotBlank()) {
                 counsellorEmail = cEmail
+                if (cSchool.isNotBlank()) {
+                    schoolInfo = schoolInfo.copy(name = cSchool)
+                }
+                counsellorName = prefs?.getString("counsellor_name", "Ms. Sharma") ?: "Ms. Sharma"
+                loggedInRole = "counsellor"
             }
-            if (cSchool.isNotBlank()) {
-                schoolInfo = schoolInfo.copy(name = cSchool)
-            }
-            counsellorName = prefs?.getString("counsellor_name", "Ms. Sharma") ?: "Ms. Sharma"
-            loggedInRole = "counsellor"
-        } else {
-            loggedInRole = "student"
         }
         loadSavedDirectMessages()
         loadSavedSageChatHistory()
@@ -345,9 +377,6 @@ class SahaayaRepository(private val context: Context? = null) {
 
     val isDarkTheme: Boolean
         get() = themeMode == ThemeMode.DARK
-
-    // Persistent Direct Messages between Students and School Counsellor
-    val directMessages = mutableStateListOf<DirectChatMessage>()
 
     fun loadSavedDirectMessages() {
         try {
@@ -492,19 +521,6 @@ class SahaayaRepository(private val context: Context? = null) {
         return true
     }
 
-    // Persistent Chat Messages with Sage AI Companion
-    var isSageTyping by mutableStateOf(false)
-
-    val chatMessages = mutableStateListOf(
-        ChatMessage(
-            id = "msg_1",
-            senderName = "Sage",
-            message = "Hi there, I'm Sage—your warm, non-judgmental AI companion here at Sahaaya. This is a safe space to express your feelings, explore your thoughts, and receive gentle guidance. While I'm an AI and not a licensed therapist, your conversations with human counsellors via \"Connect with a Counsellor\" are always private and secure. How are you feeling today?",
-            isFromUser = false,
-            timestamp = "Today, Just now"
-        )
-    )
-
     fun loadSavedSageChatHistory() {
         try {
             val raw = prefs?.getString("sage_chat_history", "") ?: ""
@@ -558,21 +574,6 @@ class SahaayaRepository(private val context: Context? = null) {
         )
         saveSageChatHistory()
     }
-
-    // Managed Students (Starts clean; dynamic accounts created/uploaded on student login)
-    val students = mutableStateListOf<Student>()
-
-    // Real Check-in history submitted by students
-    val checkIns = mutableStateListOf<CheckIn>()
-
-    // Real Friend Reports submitted by students
-    val friendReports = mutableStateListOf<FriendReport>()
-
-    // Real Support Requests submitted by students
-    val supportRequests = mutableStateListOf<SupportRequest>()
-
-    // Real Counsellor Safeguarding Cases
-    val counsellorCases = mutableStateListOf<CounsellorCase>()
 
     // Student Authentication & Profile Management
     fun loginOrRegisterStudent(
@@ -1075,8 +1076,9 @@ fun SahaayaApp() {
     val context = LocalContext.current
     val repository = remember { SahaayaRepository(context) }
     val initialScreen = when (repository.loggedInRole) {
+        "student" -> Screens.STUDENT_CONTAINER
         "counsellor" -> Screens.COUNSELLOR_CONTAINER
-        else -> Screens.STUDENT_CONTAINER
+        else -> Screens.WELCOME
     }
     val backStack = remember { mutableStateListOf(initialScreen) }
 
@@ -1092,53 +1094,26 @@ fun SahaayaApp() {
                 }
             }
 
-            fun enterStudentDirectly() {
-                if (repository.currentStudent.name.isBlank()) {
-                    repository.loginOrRegisterStudent(
-                        name = "Student",
-                        phone = "",
-                        schoolName = repository.schoolInfo.name,
-                        classSection = "Class 10 - Section A"
-                    )
-                } else {
-                    repository.loggedInRole = "student"
-                }
-                backStack.clear()
-                backStack.add(Screens.STUDENT_CONTAINER)
-            }
-
-            fun enterCounsellorDirectly() {
-                repository.loginCounsellor(
-                    email = repository.counsellorEmail.ifBlank { "counsellor@kv1vasco.edu.in" },
-                    school = repository.schoolInfo.name,
-                    name = repository.counsellorName.ifBlank { "Ms. Sharma" }
-                )
-                backStack.clear()
-                backStack.add(Screens.COUNSELLOR_CONTAINER)
-            }
-
             BackHandler(enabled = backStack.size > 1) {
                 back()
             }
 
-            when (backStack.lastOrNull() ?: Screens.STUDENT_CONTAINER) {
+            when (backStack.lastOrNull() ?: Screens.WELCOME) {
                 Screens.WELCOME -> {
                     WelcomeScreen(
                         repository = repository,
                         onGetStarted = { navigate(Screens.ROLE_SELECT) },
-                        onDirectStudentLogin = { enterStudentDirectly() },
-                        onDirectCounsellorLogin = { enterCounsellorDirectly() }
+                        onDirectStudentLogin = { navigate(Screens.STUDENT_LOGIN) },
+                        onDirectCounsellorLogin = { navigate(Screens.COUNSELLOR_LOGIN) }
                     )
                 }
 
                 Screens.ROLE_SELECT -> {
                     ChooseRoleScreen(
                         repository = repository,
-                        onSelectStudent = { enterStudentDirectly() },
-                        onSelectCounsellor = { enterCounsellorDirectly() },
-                        onBack = {
-                            if (backStack.size > 1) back() else enterStudentDirectly()
-                        }
+                        onSelectStudent = { navigate(Screens.STUDENT_LOGIN) },
+                        onSelectCounsellor = { navigate(Screens.COUNSELLOR_LOGIN) },
+                        onBack = { back() }
                     )
                 }
 
@@ -1192,7 +1167,9 @@ fun SahaayaApp() {
                     StudentMainContainer(
                         repository = repository,
                         onLogout = {
-                            navigate(Screens.ROLE_SELECT)
+                            repository.logoutStudent()
+                            backStack.clear()
+                            backStack.add(Screens.WELCOME)
                         },
                         onNavigateEmergency = {},
                         onNavigateFriendConcern = { navigate(Screens.FRIEND_CONCERN_STANDALONE) },
@@ -1208,7 +1185,9 @@ fun SahaayaApp() {
                     CounsellorMainContainer(
                         repository = repository,
                         onLogout = {
-                            navigate(Screens.ROLE_SELECT)
+                            repository.logoutCounsellor()
+                            backStack.clear()
+                            backStack.add(Screens.WELCOME)
                         },
                         onNavigateEmergency = {},
                         onNavigateChatHub = { navigate(Screens.COUNSELLOR_CHAT_HUB) }

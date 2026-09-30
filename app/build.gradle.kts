@@ -69,6 +69,8 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
+  ignoreList.add("GEMINI_API_KEY")
+  ignoreList.add("SUPABASE_SERVICE_ROLE_KEY")
 }
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
@@ -138,3 +140,28 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
+val cleanOldApks by tasks.registering(Delete::class) {
+  delete(
+    layout.projectDirectory.file("../sahaaya-debug.apk"),
+    layout.projectDirectory.file("../sahaaya-latest.apk"),
+    layout.projectDirectory.file("../sahaaya-v1-debug.apk"),
+    layout.projectDirectory.file("../sahaaya_app_clean_source.zip"),
+    layout.projectDirectory.file("../public/app-debug.apk"),
+    layout.projectDirectory.file("../public/sahaaya-latest.apk"),
+    layout.projectDirectory.dir("../apk_dist"),
+    layout.projectDirectory.dir("../latest-apk")
+  )
+}
+
+val updateApkFolder by tasks.registering(Sync::class) {
+  dependsOn(cleanOldApks)
+  from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
+  into(layout.projectDirectory.dir("../apk"))
+  rename { "sahaaya-latest.apk" }
+}
+
+tasks.matching { it.name == "assembleDebug" }.configureEach {
+  finalizedBy(updateApkFolder)
+}
+

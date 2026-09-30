@@ -305,13 +305,6 @@ fun StudentHomeScreen(
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
-                    TextButton(
-                        onClick = onSwitchRole,
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary),
-                        modifier = Modifier.testTag("student_home_switch_role_btn")
-                    ) {
-                        Text("Switch Role", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
-                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -3341,7 +3334,7 @@ fun MyProfileScreen(
                 .testTag("student_logout_btn"),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Switch Role (Student / Counsellor)", style = MaterialTheme.typography.labelLarge)
+            Text("Log Out", style = MaterialTheme.typography.labelLarge)
         }
 
         Spacer(modifier = Modifier.height(30.dp))

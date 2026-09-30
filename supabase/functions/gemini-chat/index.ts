@@ -53,11 +53,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!geminiApiKey || !supabaseUrl || !supabaseAnonKey) {
+    if (!geminiApiKey || !supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
       return new Response(
         JSON.stringify({
-          error: "Missing required environment variables (GEMINI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY)",
+          error:
+            "Missing required environment variables (GEMINI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)",
         }),
         {
           status: 500,
@@ -77,8 +79,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Use ANON key + caller's Authorization header so RLS applies (never service_role)
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    // 1. User-scoped client (SUPABASE_URL + SUPABASE_ANON_KEY + caller's JWT)
+    //    All reads and the student's own message insert run strictly under RLS.
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: authHeader },
       },
@@ -90,7 +93,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } = await userClient.auth.getUser();
 
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -110,8 +113,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Verify caller has access to conversation_id
-    const { data: canAccess, error: accessError } = await supabase.rpc(
+    // 2. Verify caller is a participant of conversation_id via RLS helper
+    const { data: canAccess, error: accessError } = await userClient.rpc(
       "can_access_conversation",
       { conv_id: conversation_id },
     );
@@ -126,8 +129,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Load the last 20 messages of the conversation ordered by created_at asc
-    const { data: recentRows, error: historyError } = await supabase
+    // 3. Read last 20 messages under RLS
+    const { data: recentRows, error: historyError } = await userClient
       .from("messages")
       .select("content, is_ai, created_at")
       .eq("conversation_id", conversation_id)
@@ -146,8 +149,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const historyAsc = (recentRows ?? []).reverse();
 
-    // Insert the user's new message into public.messages (is_ai = false, sender_id = user.id)
-    const { error: insertUserError } = await supabase.from("messages").insert({
+    // 4. Insert the student's message using userClient (RLS enforces sender_id = auth.uid(), is_ai = false)
+    const { error: insertUserError } = await userClient.from("messages").insert({
       conversation_id,
       sender_id: user.id,
       content: message.trim(),
@@ -164,8 +167,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Build Gemini contents with the Sage system prompt as the first user turn,
-    // followed by the conversation history, followed by the new message
+    // 5. Build multi-turn prompt and call Gemini 2.5 Flash
     const contents = [
       {
         role: "user",
@@ -189,7 +191,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       },
     ];
 
-    // Call Gemini 2.5 Flash
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
       {
@@ -218,8 +219,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ??
       "I hear you, and thank you for sharing that with me. Would you like to tell me a little more about what's on your mind right now?";
 
-    // Insert the reply into public.messages (is_ai = true, sender_id = null)
-    const { error: insertReplyError } = await supabase.from("messages").insert({
+    // 6. Insert the AI reply using a narrow service_role client ONLY after user auth + conversation access
+    //    have already been verified above (since RLS restricts is_ai=true, sender_id=null to service_role).
+    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    });
+
+    const { error: insertReplyError } = await adminClient.from("messages").insert({
       conversation_id,
       sender_id: null,
       content: reply,

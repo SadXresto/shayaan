@@ -36,10 +36,4 @@ jobs:
 
       - name: 3. Verify .env.example contains only safe client variables
         run: |
-          FORBIDDEN=$(grep -E "sb_secret_|service_role|AIzaSy|GEMINI_API_KEY" .env.example || true)
-          if [ -n "$FORBIDDEN" ]; then
-            echo "❌ ERROR: Forbidden secret key or variable found in .env.example:"
-            echo "$FORBIDDEN"
-            exit 1
-          fi
-          echo "✅ .env.example contains only client-safe Supabase variables."
+          bash scripts/check-env.sh .env.example
